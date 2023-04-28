@@ -302,6 +302,36 @@ class Entities extends AbstractHelper
         if ($entityKey == 'entity_id') {
             $entityKey = $this->getColumnIdentifier($entityTable);
         }
+        
+        $connection->query('DROP TABLE IF EXISTS temp_pimgento_entities_duplicates;');
+
+        $connection->query('
+            CREATE TABLE temp_pimgento_entities_duplicates(
+                code varchar(255) NOT NULL,
+                recent_created_at datetime NOT NULL
+            );
+        ');
+
+        $connection->query('
+            INSERT INTO temp_pimgento_entities_duplicates(
+                code,
+                recent_created_at
+            )
+            SELECT code, MAX(created_at) as recent_created_at
+            FROM pimgento_entities
+            WHERE import = \'option\'
+            GROUP BY code HAVING COUNT(code) > 1;
+        ');
+
+        $connection->query('
+            DELETE pimgento_entities.*
+            FROM pimgento_entities
+            INNER JOIN temp_pimgento_entities_duplicates
+            ON temp_pimgento_entities_duplicates.code = pimgento_entities.code
+            WHERE pimgento_entities.created_at < temp_pimgento_entities_duplicates.recent_created_at;
+        ');
+
+        $connection->query('DROP TABLE IF EXISTS temp_pimgento_entities_duplicates;');
 
         /* Update entity_id column from pimgento_entities table */
         $connection->query('
@@ -311,7 +341,7 @@ class Entities extends AbstractHelper
                 WHERE ' . ($prefix ? 'CONCAT(t.`' . $prefix . '`, "_", t.`' . $pimKey . '`)' : 't.`' . $pimKey . '`') . ' = c.`code`
                     AND c.`import` = "' . $import . '"
             )
-        ');
+        ')->where("`$value` IS NOT NULL");
 
         /* Set entity_id for new entities */
         /** @var string $query */
