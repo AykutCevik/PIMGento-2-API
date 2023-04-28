@@ -9,7 +9,7 @@ use Magento\Framework\App\Helper\Context;
 use Akeneo\Pim\ApiClient\AkeneoPimClientBuilder;
 use Akeneo\PimEnterprise\ApiClient\AkeneoPimEnterpriseClientBuilder;
 use Pimgento\Api\Helper\Config as ConfigHelper;
-use Http\Adapter\Guzzle6\Client;
+use Http\Adapter\Guzzle7\Client;
 use Http\Message\StreamFactory\GuzzleStreamFactory;
 use Http\Message\MessageFactory\GuzzleMessageFactory;
 
