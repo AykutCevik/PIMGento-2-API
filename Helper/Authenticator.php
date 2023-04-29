@@ -9,8 +9,8 @@ use Magento\Framework\App\Helper\Context;
 use Akeneo\Pim\ApiClient\AkeneoPimClientBuilder;
 use Pimgento\Api\Helper\Config as ConfigHelper;
 use Http\Adapter\Guzzle7\Client;
-use Http\Message\StreamFactory\GuzzleStreamFactory;
-use Http\Message\MessageFactory\GuzzleMessageFactory;
+use Psr\Message\StreamFactory\GuzzleStreamFactory;
+use Psr\Message\MessageFactory\GuzzleMessageFactory;
 
 /**
  * Class Authenticator
