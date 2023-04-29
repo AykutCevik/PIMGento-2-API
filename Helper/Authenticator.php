@@ -7,7 +7,6 @@ use Akeneo\PimEnterprise\ApiClient\AkeneoPimEnterpriseClientInterface;
 use Magento\Framework\App\Helper\AbstractHelper;
 use Magento\Framework\App\Helper\Context;
 use Akeneo\Pim\ApiClient\AkeneoPimClientBuilder;
-use Akeneo\PimEnterprise\ApiClient\AkeneoPimEnterpriseClientBuilder;
 use Pimgento\Api\Helper\Config as ConfigHelper;
 use Http\Adapter\Guzzle7\Client;
 use Http\Message\StreamFactory\GuzzleStreamFactory;
@@ -68,14 +67,8 @@ class Authenticator extends AbstractHelper
         if (!$baseUri || !$clientId || !$secret || !$username || !$password) {
             return false;
         }
-        /** @var bool $isEnterprise */
-        $isEnterprise = $this->configHelper->isAkeneoEnterprise();
-        /** @var AkeneoPimClientBuilder|AkeneoPimEnterpriseClientBuilder $akeneoClientBuilder */
+        /** @var AkeneoPimClientBuilder $akeneoClientBuilder */
         $akeneoClientBuilder = new AkeneoPimClientBuilder($baseUri);
-        if ($isEnterprise) {
-            $akeneoClientBuilder = new AkeneoPimEnterpriseClientBuilder($baseUri);
-        }
-
         $akeneoClientBuilder->setHttpClient(new Client());
         $akeneoClientBuilder->setStreamFactory(new GuzzleStreamFactory());
         $akeneoClientBuilder->setRequestFactory(new GuzzleMessageFactory());
