@@ -8,9 +8,9 @@ use Magento\Framework\App\Helper\AbstractHelper;
 use Magento\Framework\App\Helper\Context;
 use Akeneo\Pim\ApiClient\AkeneoPimClientBuilder;
 use Pimgento\Api\Helper\Config as ConfigHelper;
-use Http\Adapter\Guzzle7\Client;
-use GuzzleHttp\Psr7\Stream;
-use GuzzleHttp\Psr7\Message;
+use Http\Factory\Guzzle\StreamFactory;
+use Http\Factory\Guzzle\RequestFactory;
+use Symfony\Component\HttpClient\Psr18Client;
 
 /**
  * Class Authenticator
@@ -69,9 +69,9 @@ class Authenticator extends AbstractHelper
         }
         /** @var AkeneoPimClientBuilder $akeneoClientBuilder */
         $akeneoClientBuilder = new AkeneoPimClientBuilder($baseUri);
-        $akeneoClientBuilder->setHttpClient(new Client());
-        $akeneoClientBuilder->setStreamFactory(new Stream());
-        $akeneoClientBuilder->setRequestFactory(new Message());
+        $akeneoClientBuilder->setHttpClient(new Psr18Client());
+        $akeneoClientBuilder->setStreamFactory(new StreamFactory());
+        $akeneoClientBuilder->setRequestFactory(new RequestFactory());
 
         return $akeneoClientBuilder->buildAuthenticatedByPassword($clientId, $secret, $username, $password);
     }

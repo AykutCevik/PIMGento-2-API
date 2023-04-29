@@ -9,8 +9,9 @@
     "magento/module-eav": ">=100.0.1",
     "magento/module-store": ">=100.0.1",
     "akeneo/api-php-client": "^11.1.0",
-    "guzzlehttp/psr7": "2.5.0",
-    "php-http/guzzle7-adapter": "^1.0.0"
+    "symfony/http-client": "^5",
+    "http-interop/http-factory-guzzle": "^1.0",
+    "nyholm/psr7": "^1.5"
   },
   "type": "magento2-module",
   "version": "100.3.5",
