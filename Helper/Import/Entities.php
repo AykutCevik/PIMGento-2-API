@@ -8,7 +8,9 @@ use Magento\Framework\App\ResourceConnection;
 use Magento\Framework\DB\Ddl\Table;
 use Magento\Framework\DB\Select;
 use Magento\Framework\DB\Adapter\AdapterInterface;
+use Magento\Framework\App\DeploymentConfig;
 use Magento\Eav\Api\Data\AttributeInterface;
+use Magento\Framework\Config\ConfigOptionsListConstants;
 use Zend_Db_Expr as Expr;
 use Akeneo\Pim\ApiClient\Pagination\ResourceCursorInterface;
 
@@ -36,6 +38,12 @@ class Entities extends AbstractHelper
      * @var array EXCLUDED_COLUMNS
      */
     const EXCLUDED_COLUMNS = ['_links'];
+    /**
+     * Pimgento product import code
+     *
+     * @var string IMPORT_CODE_PRODUCT
+     */
+    const IMPORT_CODE_PRODUCT = 'product';
 
     /**
      * This variable contains a ResourceConnection
@@ -43,20 +51,45 @@ class Entities extends AbstractHelper
      * @var ResourceConnection $connection
      */
     protected $connection;
+    /**
+     * @var DeploymentConfig $deploymentConfig
+     */
+    private $deploymentConfig;
+    /**
+     * @var string
+     */
+    protected $tablePrefix;
+    /**
+     * Product attributes to pass if empty value
+     *
+     * @var string[] $passIfEmpty
+     */
+    protected $passIfEmpty = [
+        'price',
+    ];
+    /**
+     * Mapped catalog attributes with relative scope
+     *
+     * @var string[] $attributeScopeMapping
+     */
+    protected $attributeScopeMapping = [];
 
     /**
      * Entities constructor
      *
      * @param Context $context
      * @param ResourceConnection $connection
+     * @param DeploymentConfig $deploymentConfig
      */
     public function __construct(
         Context $context,
-        ResourceConnection $connection
+        ResourceConnection $connection,
+        DeploymentConfig $deploymentConfig
     ) {
         parent::__construct($context);
 
         $this->connection = $connection->getConnection();
+        $this->deploymentConfig = $deploymentConfig;
     }
 
     /**
@@ -88,7 +121,34 @@ class Entities extends AbstractHelper
             $fragments[] = $tableSuffix;
         }
 
-        return $this->connection->getTableName(join('_', $fragments));
+        return $this->getTable(join('_', $fragments));
+    }
+
+    /**
+     * Retrieve table name with prefix
+     *
+     * @param string $tableName
+     *
+     * @return string
+     */
+    public function getTable($tableName)
+    {
+        return $this->getTablePrefix() . $this->connection->getTableName($tableName);
+    }
+
+    /**
+     * Get table prefix
+     *
+     * @return string
+     */
+    private function getTablePrefix()
+    {
+        if (null === $this->tablePrefix) {
+            $this->tablePrefix = (string)$this->deploymentConfig->get(
+                ConfigOptionsListConstants::CONFIG_PATH_DB_PREFIX
+            );
+        }
+        return $this->tablePrefix;
     }
 
     /**
@@ -127,6 +187,23 @@ class Entities extends AbstractHelper
         /* Create new table */
         /** @var Table $table */
         $table = $this->connection->newTable($tableName);
+
+        $fields = array_diff($fields, ['identifier']);
+
+        $table->addColumn(
+            'identifier',
+            Table::TYPE_VARBINARY,
+            255,
+            [],
+            'identifier'
+        );
+
+        $table->addIndex(
+            'UNIQUE_IDENTIFIER',
+            'identifier',
+            ['type' => AdapterInterface::INDEX_TYPE_UNIQUE]
+        );
+
         /** @var string $field */
         foreach ($fields as $field) {
             if ($field) {
@@ -134,7 +211,7 @@ class Entities extends AbstractHelper
                 $column = $this->formatColumn($field);
                 $table->addColumn(
                     $column,
-                    \Magento\Framework\DB\Ddl\Table::TYPE_TEXT,
+                    Table::TYPE_TEXT,
                     null,
                     [],
                     $column
@@ -144,7 +221,7 @@ class Entities extends AbstractHelper
 
         $table->addColumn(
             '_entity_id',
-            \Magento\Framework\DB\Ddl\Table::TYPE_INTEGER,
+            Table::TYPE_INTEGER,
             11,
             [],
             'Entity Id'
@@ -153,12 +230,12 @@ class Entities extends AbstractHelper
         $table->addIndex(
             'UNIQUE_ENTITY_ID',
             '_entity_id',
-            ['type' => \Magento\Framework\DB\Adapter\AdapterInterface::INDEX_TYPE_UNIQUE]
+            ['type' => AdapterInterface::INDEX_TYPE_UNIQUE]
         );
 
         $table->addColumn(
             '_is_new',
-            \Magento\Framework\DB\Ddl\Table::TYPE_SMALLINT,
+            Table::TYPE_SMALLINT,
             1,
             ['default' => 0],
             'Is New'
@@ -249,30 +326,40 @@ class Entities extends AbstractHelper
     /**
      * Insert data in the temporary table
      *
-     * @param array $result
+     * @param array       $result
      * @param null|string $tableSuffix
-     * @param int $queryNumber
      *
-     * @return void
+     * @return bool
      */
-    public function insertDataFromApi(array $result, $tableSuffix = null, $queryNumber = 1000)
+    public function insertDataFromApi(array $result, $tableSuffix = null)
     {
+        if (empty($result)) {
+            return false;
+        }
+
         /** @var string $tableName */
         $tableName = $this->getTableName($tableSuffix);
 
         /** @var string[] $result */
         $result = $this->getColumnsFromResult($result);
+
+        /** @var string[] $fields */
+        $fields = array_diff_key($result, ['identifier' => null]);
+        $fields = array_keys($fields);
+
         /**
          * @var string $key
-         * @var $string $value
+         * @var        $string $value
          */
         foreach ($result as $key => $value) {
             if (!$this->connection->tableColumnExists($tableName, $key)) {
-                $this->connection->addColumn($tableName, $key, 'TEXT NULL');
+                $this->connection->addColumn($tableName, $key, 'text');
             }
         }
 
-        $this->connection->insert($tableName, $result);
+        $this->connection->insertOnDuplicate($tableName, $result, $fields);
+
+        return true;
     }
 
     /**
@@ -295,43 +382,13 @@ class Entities extends AbstractHelper
 
         $connection->delete($tableName, [$pimKey . ' = ?' => '']);
         /** @var string $pimgentoTable */
-        $pimgentoTable = $connection->getTableName('pimgento_entities');
+        $pimgentoTable = $this->getTable('pimgento_entities');
         /** @var string $entityTable */
-        $entityTable = $connection->getTableName($entityTable);
+        $entityTable = $this->getTable($entityTable);
 
         if ($entityKey == 'entity_id') {
             $entityKey = $this->getColumnIdentifier($entityTable);
         }
-        
-        $connection->query('DROP TABLE IF EXISTS temp_pimgento_entities_duplicates;');
-
-        $connection->query('
-            CREATE TABLE temp_pimgento_entities_duplicates(
-                code varchar(255) NOT NULL,
-                recent_created_at datetime NOT NULL
-            );
-        ');
-
-        $connection->query('
-            INSERT INTO temp_pimgento_entities_duplicates(
-                code,
-                recent_created_at
-            )
-            SELECT code, MAX(created_at) as recent_created_at
-            FROM pimgento_entities
-            WHERE import = \'option\'
-            GROUP BY code HAVING COUNT(code) > 1;
-        ');
-
-        $connection->query('
-            DELETE pimgento_entities.*
-            FROM pimgento_entities
-            INNER JOIN temp_pimgento_entities_duplicates
-            ON temp_pimgento_entities_duplicates.code = pimgento_entities.code
-            WHERE pimgento_entities.created_at < temp_pimgento_entities_duplicates.recent_created_at;
-        ');
-
-        $connection->query('DROP TABLE IF EXISTS temp_pimgento_entities_duplicates;');
 
         /* Update entity_id column from pimgento_entities table */
         $connection->query('
@@ -341,7 +398,7 @@ class Entities extends AbstractHelper
                 WHERE ' . ($prefix ? 'CONCAT(t.`' . $prefix . '`, "_", t.`' . $pimKey . '`)' : 't.`' . $pimKey . '`') . ' = c.`code`
                     AND c.`import` = "' . $import . '"
             )
-        ')->where("`$value` IS NOT NULL");
+        ');
 
         /* Set entity_id for new entities */
         /** @var string $query */
@@ -416,7 +473,7 @@ class Entities extends AbstractHelper
         /** @var \Magento\Framework\DB\Adapter\AdapterInterface $connection */
         $connection = $this->getConnection();
         /** @var string $tableName */
-        $tableName  = $this->getTableName($import);
+        $tableName = $this->getTableName($import);
 
         /**
          * @var string $code
@@ -426,7 +483,7 @@ class Entities extends AbstractHelper
             /** @var array|bool $attribute */
             $attribute = $this->getAttribute($code, $entityTypeId);
 
-            if (!$attribute) {
+            if (empty($attribute)) {
                 continue;
             }
 
@@ -441,32 +498,29 @@ class Entities extends AbstractHelper
             /** @var string $backendType */
             $backendType = $attribute[AttributeInterface::BACKEND_TYPE];
             /** @var string $identifier */
-            $identifier = $this->getColumnIdentifier($entityTable . '_' . $backendType);
-            /** @var string $columnName */
-            $columnName = $value;
-            /** @var bool $columnExists */
-            $columnExists = $connection->tableColumnExists($tableName, $value);
-
-            if ($columnExists) {
-                $value = new Expr('IF(`' . $value . '` <> "", `' . $value . '`, NULL)');
-            }
+            $identifier = $this->getColumnIdentifier($this->getTable($entityTable . '_' . $backendType));
 
             /** @var \Magento\Framework\DB\Select $select */
-            $select = $connection->select()
-                ->from(
-                    $tableName,
-                    [
-                        'attribute_id'   => new Expr($attribute[AttributeInterface::ATTRIBUTE_ID]),
-                        'store_id'       => new Expr($storeId),
-                        $identifier      => '_entity_id',
-                        'value'          => $value,
-                    ]
-                );
+            $select = $connection->select()->from(
+                $tableName,
+                [
+                    'attribute_id' => new Expr($attribute[AttributeInterface::ATTRIBUTE_ID]),
+                    'store_id'     => new Expr($storeId),
+                    $identifier    => '_entity_id',
+                    'value'        => $value,
+                ]
+            );
+
+            /** @var bool $columnExists */
+            $columnExists = $connection->tableColumnExists($tableName, $value);
+            if ($columnExists && ($import !== self::IMPORT_CODE_PRODUCT || in_array($code, $this->passIfEmpty))) {
+                $select->where(sprintf('TRIM(`%s`) > ?', $value), new Expr('""'));
+            }
 
             /** @var string $insert */
             $insert = $connection->insertFromSelect(
                 $select,
-                $connection->getTableName($entityTable . '_' . $backendType),
+                $this->getTable($entityTable . '_' . $backendType),
                 ['attribute_id', 'store_id', $identifier, 'value'],
                 $mode
             );
@@ -477,10 +531,12 @@ class Entities extends AbstractHelper
                     'value' => new Expr('NULL'),
                 ];
                 $where = [
-                    'value = ?' => '0000-00-00 00:00:00'
+                    'value = ?' => '0000-00-00 00:00:00',
                 ];
                 $connection->update(
-                    $connection->getTableName($entityTable . '_' . $backendType), $values, $where
+                    $this->getTable($entityTable . '_' . $backendType),
+                    $values,
+                    $where
                 );
             }
         }
@@ -505,7 +561,7 @@ class Entities extends AbstractHelper
         $attribute = $connection->fetchRow(
             $connection->select()
                 ->from(
-                    $connection->getTableName('eav_attribute'),
+                    $this->getTable('eav_attribute'),
                     [
                         AttributeInterface::ATTRIBUTE_ID,
                         AttributeInterface::BACKEND_TYPE
@@ -521,6 +577,35 @@ class Entities extends AbstractHelper
         }
 
         return $attribute;
+    }
+
+    /**
+     * Retrieve catalog attributes mapped with relative scope
+     *
+     * @return string[]
+     */
+    public function getAttributeScopeMapping()
+    {
+        if (!empty($this->attributeScopeMapping)) {
+            return $this->attributeScopeMapping;
+        }
+
+        /** @var \Magento\Framework\DB\Adapter\AdapterInterface $connection */
+        $connection = $this->connection;
+        /** @var string $catalogAttribute */
+        $catalogAttribute = $this->getTable('catalog_eav_attribute');
+        /** @var string $eavAttribute */
+        $eavAttribute = $this->getTable('eav_attribute');
+        /** @var Select $select */
+        $select = $connection->select()->from(['a' => $eavAttribute], ['attribute_code'])->joinInner(['c' => $catalogAttribute], 'c.attribute_id = a.attribute_id', ['is_global']);
+
+        /** @var string[] $attributeScopes */
+        $attributeScopes = $connection->fetchPairs($select);
+        if (!empty($attributeScopes)) {
+            $this->attributeScopeMapping = $attributeScopes;
+        }
+
+        return $this->attributeScopeMapping;
     }
 
     /**
@@ -555,7 +640,7 @@ class Entities extends AbstractHelper
         $connection = $this->getConnection();
 
         if ($connection->tableColumnExists($tableName, $source)) {
-            $connection->addColumn($tableName, $target, 'TEXT');
+            $connection->addColumn($tableName, $target, 'text');
             $connection->update(
                 $tableName, array($target => new Expr('`' . $source . '`'))
             );
@@ -578,7 +663,7 @@ class Entities extends AbstractHelper
         $connection = $this->getConnection();
 
         /** @var string $pimTable */
-        $pimTable = $connection->getTableName('pimgento_entities');
+        $pimTable = $this->getTable('pimgento_entities');
 
         /** @var array $data */
         $data = [
@@ -587,5 +672,32 @@ class Entities extends AbstractHelper
         ];
 
         return $connection->delete($pimTable, $data);
+    }
+
+    /**
+     * Set prefix to lower case
+     * to avoid problems with values import
+     *
+     * @param string[] $values
+     *
+     * @return string[]
+     */
+    public function prefixToLowerCase($values)
+    {
+        /** @var string[] $newValues */
+        $newValues = [];
+        foreach ($values as $key => $data) {
+            /** @var string[] $keyParts */
+            $keyParts    = explode('-', $key, 2);
+            $keyParts[0] = strtolower($keyParts[0]);
+
+            if (count($keyParts) > 1) {
+                $newValues[$keyParts[0].'-'.$keyParts[1]] = $data;
+            } else {
+                $newValues[$keyParts[0]] = $data;
+            }
+        }
+
+        return $newValues;
     }
 }

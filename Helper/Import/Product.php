@@ -60,8 +60,10 @@ class Product extends Entities
             if ($key === self::VALUES_KEY) {
                 /** @var array $values */
                 $values = $this->formatValues($value);
+                /** @var string[] $newValues */
+                $newValues = $this->prefixToLowerCase($values); // Set prefix attribut to lower case
                 /** @var array $columns */
-                $columns = $columns + $values;
+                $columns = $columns + $newValues;
 
                 continue;
             }
@@ -129,7 +131,7 @@ class Product extends Entities
                     continue;
                 }
                 // Attribute is a multiselect
-                if (!is_array($attributeValue['data'][0]) || !array_key_exists('amount', $attributeValue['data'][0])) {
+                if (isset($attributeValue['data'][0]) && (!is_array($attributeValue['data'][0]) || !array_key_exists('amount', $attributeValue['data'][0]))) {
                     $columns[$key] = join(',', $attributeValue['data']);
 
                     continue;
@@ -137,6 +139,9 @@ class Product extends Entities
                 // Attribute is a price
                 /** @var array $price */
                 foreach ($attributeValue['data'] as $price) {
+                    if (!array_key_exists('currency', $price) || !array_key_exists('amount', $price)) {
+                        continue;
+                    }
                     /** @var string $priceKey */
                     $priceKey           = $key . '-' . $price['currency'];
                     $columns[$priceKey] = $price['amount'];
@@ -194,7 +199,7 @@ class Product extends Entities
     private function getKey($attribute, array $attributeValue)
     {
         /** @var string $key */
-        $key = $attribute;
+        $key = strtolower($attribute);
         if (isset($attributeValue['locale']) && isset($attributeValue['scope'])) {
             $key = join('-', [$attribute, $attributeValue['locale'], $attributeValue['scope']]);
         } elseif (isset($attributeValue['locale'])) {

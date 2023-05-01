@@ -235,23 +235,53 @@ class Attribute extends AbstractHelper
         /** @var array $columns */
         $columns = [
             'backend_type'   => [
-                'type'      => 'VARCHAR(255) NULL',
+                'type'      => [
+                    'type' => 'text',
+                    'length' => 255,
+                    'default' => '',
+                    'COMMENT' => ' ',
+                    'nullable' => false
+                ],
                 'only_init' => true,
             ],
             'frontend_input' => [
-                'type'      => 'VARCHAR(255) NULL',
+                'type'      => [
+                    'type' => 'text',
+                    'length' => 255,
+                    'default' => '',
+                    'COMMENT' => ' ',
+                    'nullable' => false
+                ],
                 'only_init' => true,
             ],
             'backend_model'  => [
-                'type'      => 'VARCHAR(255) NULL',
+                'type'      => [
+                    'type' => 'text',
+                    'length' => 255,
+                    'default' => '',
+                    'COMMENT' => ' ',
+                    'nullable' => false
+                ],
                 'only_init' => true,
             ],
             'source_model'   => [
-                'type'      => 'VARCHAR(255) NULL',
+                'type'      => [
+                    'type' => 'text',
+                    'length' => 255,
+                    'default' => '',
+                    'COMMENT' => ' ',
+                    'nullable' => false
+                ],
                 'only_init' => true,
             ],
             'frontend_model' => [
-                'type'      => 'VARCHAR(255) NULL',
+                'type'      => [
+                    'type' => 'text',
+                    'length' => 255,
+                    'default' => '',
+                    'COMMENT' => ' ',
+                    'nullable' => false
+                ],
                 'only_init' => false,
             ],
         ];

@@ -19,6 +19,7 @@ use Magento\Framework\Filesystem\Directory\WriteInterface;
 use Magento\Framework\File\Uploader;
 use Magento\Framework\App\Filesystem\DirectoryList;
 use Magento\Eav\Model\Entity\Attribute\AbstractAttribute;
+use Magento\Catalog\Helper\Product as ProductHelper;
 
 /**
  * Class Config
@@ -40,26 +41,35 @@ class Config extends AbstractHelper
     const AKENEO_API_CLIENT_SECRET = 'pimgento/akeneo_api/client_secret';
     const AKENEO_API_IS_ENTERPRISE = 'pimgento/akeneo_api/is_enterprise';
     const AKENEO_API_PAGINATION_SIZE = 'pimgento/akeneo_api/pagination_size';
+    const AKENEO_API_ADMIN_CHANNEL = 'pimgento/akeneo_api/admin_channel';
     const AKENEO_API_WEBSITE_MAPPING = 'pimgento/akeneo_api/website_mapping';
     const PRODUCTS_FILTERS_MODE = 'pimgento/products_filters/mode';
     const PRODUCTS_FILTERS_COMPLETENESS_TYPE = 'pimgento/products_filters/completeness_type';
     const PRODUCTS_FILTERS_COMPLETENESS_VALUE = 'pimgento/products_filters/completeness_value';
-    const PRODUCTS_FILTERS_COMPLETENESS_SCOPE = 'pimgento/products_filters/completeness_scope';
     const PRODUCTS_FILTERS_COMPLETENESS_LOCALES = 'pimgento/products_filters/completeness_locales';
     const PRODUCTS_FILTERS_STATUS = 'pimgento/products_filters/status';
     const PRODUCTS_FILTERS_FAMILIES = 'pimgento/products_filters/families';
-    const PRODUCTS_FILTERS_UPDATED = 'pimgento/products_filters/updated';
+    const PRODUCTS_FILTERS_UPDATED_MODE = 'pimgento/products_filters/updated_mode';
+    const PRODUCTS_FILTERS_UPDATED_LOWER = 'pimgento/products_filters/updated_lower';
+    const PRODUCTS_FILTERS_UPDATED_GREATER = 'pimgento/products_filters/updated_greater';
+    const PRODUCTS_FILTERS_UPDATED_BETWEEN_AFTER = 'pimgento/products_filters/updated_between_after';
+    const PRODUCTS_FILTERS_UPDATED_BETWEEN_BEFORE = 'pimgento/products_filters/updated_between_before';
+    const PRODUCTS_FILTERS_UPDATED_SINCE = 'pimgento/products_filters/updated';
     const PRODUCTS_FILTERS_ADVANCED_FILTER = 'pimgento/products_filters/advanced_filter';
+    const PRODUCTS_CATEGORY_IS_ACTIVE = 'pimgento/category/is_active';
+    const PRODUCTS_CATEGORY_INCLUDE_IN_MENU = 'pimgento/category/include_in_menu';
+    const PRODUCTS_CATEGORY_IS_ANCHOR = 'pimgento/category/is_anchor';
+    const PRODUCTS_CATEGORY_CATEGORIES = 'pimgento/products_filters/categories';
     const PRODUCT_ATTRIBUTE_MAPPING = 'pimgento/product/attribute_mapping';
     const PRODUCT_CONFIGURABLE_ATTRIBUTES = 'pimgento/product/configurable_attributes';
     const PRODUCT_TAX_CLASS = 'pimgento/product/tax_class';
+    const PRODUCT_URL_GENERATION_ENABLED = 'pimgento/product/url_generation_enabled';
     const PRODUCT_MEDIA_ENABLED = 'pimgento/product/media_enabled';
     const PRODUCT_MEDIA_IMAGES = 'pimgento/product/media_images';
     const PRODUCT_MEDIA_GALLERY = 'pimgento/product/media_gallery';
     const PRODUCT_ASSET_ENABLED = 'pimgento/product/asset_enabled';
     const PRODUCT_ASSET_GALLERY = 'pimgento/product/asset_gallery';
     const ATTRIBUTE_TYPES = 'pimgento/attribute/types';
-
     /**
      * @var int PAGINATION_SIZE_DEFAULT_VALUE
      */
@@ -110,14 +120,14 @@ class Config extends AbstractHelper
     /**
      * Config constructor
      *
-     * @param Context $context
-     * @param Encryptor $encryptor
-     * @param Serializer $serializer
-     * @param EavConfig $eavConfig
-     * @param StoreManagerInterface $storeManager
+     * @param Context                       $context
+     * @param Encryptor                     $encryptor
+     * @param Serializer                    $serializer
+     * @param EavConfig                     $eavConfig
+     * @param StoreManagerInterface         $storeManager
      * @param CatalogInventoryConfiguration $catalogInventoryConfiguration
-     * @param Filesystem $filesystem
-     * @param MediaConfig $mediaConfig
+     * @param Filesystem                    $filesystem
+     * @param MediaConfig                   $mediaConfig
      */
     public function __construct(
         Context $context,
@@ -238,16 +248,6 @@ class Config extends AbstractHelper
     }
 
     /**
-     * Retrieve the scope to apply the completeness filter on
-     *
-     * @return string
-     */
-    public function getCompletenessScopeFilter()
-    {
-        return $this->scopeConfig->getValue(self::PRODUCTS_FILTERS_COMPLETENESS_SCOPE);
-    }
-
-    /**
      * Retrieve the locales to apply the completeness filter on
      *
      * @return string
@@ -270,13 +270,63 @@ class Config extends AbstractHelper
     }
 
     /**
-     * Retrieve the updated filter
+     * Retrieve updated mode
      *
      * @return string
      */
-    public function getUpdatedFilter()
+    public function getUpdatedMode()
     {
-        return $this->scopeConfig->getValue(self::PRODUCTS_FILTERS_UPDATED);
+        return $this->scopeConfig->getValue(self::PRODUCTS_FILTERS_UPDATED_MODE);
+    }
+
+    /**
+     * Retrieve the updated before filter
+     *
+     * @return string
+     */
+    public function getUpdatedLowerFilter()
+    {
+        return $this->scopeConfig->getValue(self::PRODUCTS_FILTERS_UPDATED_LOWER);
+    }
+
+    /**
+     * Retrieve the updated after filter
+     *
+     * @return string
+     */
+    public function getUpdatedGreaterFilter()
+    {
+        return $this->scopeConfig->getValue(self::PRODUCTS_FILTERS_UPDATED_GREATER);
+    }
+
+    /**
+     * Retrieve the updated after for between filter
+     *
+     * @return string
+     */
+    public function getUpdatedBetweenAfterFilter()
+    {
+        return $this->scopeConfig->getValue(self::PRODUCTS_FILTERS_UPDATED_BETWEEN_AFTER);
+    }
+
+    /**
+     * Retrieve the updated before for between filter
+     *
+     * @return string
+     */
+    public function getUpdatedBetweenBeforeFilter()
+    {
+        return $this->scopeConfig->getValue(self::PRODUCTS_FILTERS_UPDATED_BETWEEN_BEFORE);
+    }
+
+    /**
+     * Retrieve the updated since filter
+     *
+     * @return string
+     */
+    public function getUpdatedSinceFilter()
+    {
+        return $this->scopeConfig->getValue(self::PRODUCTS_FILTERS_UPDATED_SINCE);
     }
 
     /**
@@ -302,13 +352,111 @@ class Config extends AbstractHelper
     }
 
     /**
-     * Retrieve website mapping
+     * Retrieve the status of imported categories
      *
      * @return string
      */
-    public function getWebsiteMapping()
+    public function getIsCategoryActive()
     {
-        return $this->scopeConfig->getValue(self::AKENEO_API_WEBSITE_MAPPING);
+        return $this->scopeConfig->getValue(self::PRODUCTS_CATEGORY_IS_ACTIVE);
+    }
+
+    /**
+     * Retrieve the inclusion in menu of imported categories
+     *
+     * @return string
+     */
+    public function getIsCategoryInMenu()
+    {
+        return $this->scopeConfig->getValue(self::PRODUCTS_CATEGORY_INCLUDE_IN_MENU);
+    }
+
+    /**
+     * Retrieve the anchor state of imported categories
+     *
+     * @return string
+     */
+    public function getIsCategoryAnchor()
+    {
+        return $this->scopeConfig->getValue(self::PRODUCTS_CATEGORY_IS_ANCHOR);
+    }
+
+    /**
+     * Retrieve the categories to filter the category import
+     *
+     * @return string
+     */
+    public function getCategoriesFilter()
+    {
+        return $this->scopeConfig->getValue(self::PRODUCTS_CATEGORY_CATEGORIES);
+    }
+
+    /**
+     * Get Admin Website Default Channel from configuration
+     *
+     * @return string
+     */
+    public function getAdminDefaultChannel()
+    {
+        return $this->scopeConfig->getValue(self::AKENEO_API_ADMIN_CHANNEL);
+    }
+
+    /**
+     * Retrieve website mapping
+     *
+     * @param bool $withDefault
+     *
+     * @return mixed[]
+     * @throws \Exception
+     */
+    public function getWebsiteMapping($withDefault = true)
+    {
+        /** @var mixed[] $mapping */
+        $mapping = [];
+
+        if ($withDefault === true) {
+            /** @var string $adminChannel */
+            $adminChannel = $this->getAdminDefaultChannel();
+            if (empty($adminChannel)) {
+                throw new \Exception(__('No channel found for Admin website channel configuration.'));
+            }
+
+            $mapping[] = [
+                'channel' => $adminChannel,
+                'website' => $this->storeManager->getWebsite(0)->getCode(),
+            ];
+        }
+
+        /** @var string $websiteMapping */
+        $websiteMapping = $this->scopeConfig->getValue(self::AKENEO_API_WEBSITE_MAPPING);
+        if (empty($websiteMapping)) {
+            return $mapping;
+        }
+
+        /** @var mixed[] $websiteMapping */
+        $websiteMapping = $this->serializer->unserialize($websiteMapping);
+        if (empty($websiteMapping) || !is_array($websiteMapping)) {
+            return $mapping;
+        }
+
+        $mapping = array_merge($mapping, $websiteMapping);
+
+        return $mapping;
+    }
+
+    /**
+     * Get mapped channels
+     *
+     * @return string[]
+     */
+    public function getMappedChannels()
+    {
+        /** @var mixed[] $mapping */
+        $mapping = $this->getWebsiteMapping();
+        /** @var string[] $channels */
+        $channels = array_column($mapping, 'channel', 'channel');
+
+        return $channels;
     }
 
     /**
@@ -465,6 +613,16 @@ class Config extends AbstractHelper
     }
 
     /**
+     * Description isUrlGenerationEnabled function
+     *
+     * @return bool
+     */
+    public function isUrlGenerationEnabled()
+    {
+        return $this->scopeConfig->isSetFlag(self::PRODUCT_URL_GENERATION_ENABLED);
+    }
+
+    /**
      * Retrieve media attribute column
      *
      * @return array
@@ -600,5 +758,52 @@ class Config extends AbstractHelper
     public function getMediaFilePath($filename)
     {
         return Uploader::getDispretionPath($filename) . '/' . Uploader::getCorrectFileName($filename);
+    }
+
+    /**
+     * Retrieve if category is used in product URL
+     *
+     * @param int $storeId
+     *
+     * @return bool
+     */
+    public function isCategoryUsedInProductUrl($storeId = null)
+    {
+        return $this->scopeConfig->isSetFlag(
+            ProductHelper::XML_PATH_PRODUCT_URL_USE_CATEGORY,
+            ScopeInterface::SCOPE_STORE,
+            $storeId
+        );
+    }
+
+    /**
+     * Check if url_key attribute is mapped with PIM attribute
+     *
+     * @return bool
+     */
+    public function isUrlKeyMapped()
+    {
+        /** @var mixed $matches */
+        $matches = $this->scopeConfig->getValue(self::PRODUCT_ATTRIBUTE_MAPPING);
+        /** @var mixed[] $matches */
+        $matches = $this->serializer->unserialize($matches);
+        if (!is_array($matches)) {
+            return false;
+        }
+
+        /** @var mixed[] $match */
+        foreach ($matches as $match) {
+            if (!isset($match['pim_attribute'], $match['magento_attribute'])) {
+                continue;
+            }
+
+            /** @var string $magentoAttribute */
+            $magentoAttribute = $match['magento_attribute'];
+            if ($magentoAttribute === 'url_key') {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

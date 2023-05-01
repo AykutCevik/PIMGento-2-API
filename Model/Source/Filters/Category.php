@@ -8,36 +8,41 @@ use Magento\Framework\Option\ArrayInterface;
 use Pimgento\Api\Helper\Authenticator;
 
 /**
- * Class Family
+ * Class Category
  *
  * @category  Class
  * @package   Pimgento\Api\Model\Source\Filters
  * @author    Agence Dn'D <contact@dnd.fr>
- * @copyright 2018 Agence Dn'D
- * @license   http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
- * @link      https://www.pimgento.fr/
+ * @copyright 2019 Agence Dn'D
+ * @license   https://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ * @link      https://www.dnd.fr/
  */
-class Family implements ArrayInterface
+class Category implements ArrayInterface
 {
     /**
-     * This variable contains a mixed value
+     * This variable is used for Akeneo Authenticator
      *
      * @var Authenticator $akeneoAuthenticator
      */
     protected $akeneoAuthenticator;
-    /** @var \Psr\Log\LoggerInterface $logger */
+    /**
+     *
+     *
+     * @var \Psr\Log\LoggerInterface $logger
+     */
     private $logger;
     /**
-     * List of options
+     * This variable contains Categories options
      *
      * @var string[] $options
      */
     protected $options = [];
 
     /**
-     * Family constructor
+     * Category constructor
      *
-     * @param Authenticator $akeneoAuthenticator
+     * @param Authenticator            $akeneoAuthenticator
+     * @param \Psr\Log\LoggerInterface $logger
      */
     public function __construct(
         Authenticator $akeneoAuthenticator,
@@ -63,14 +68,15 @@ class Family implements ArrayInterface
                 return;
             }
 
-            /** @var ResourceCursorInterface $families */
-            $families = $client->getFamilyApi()->all();
-            /** @var mixed[] $family */
-            foreach ($families as $family) {
-                if (!isset($family['code'])) {
+            /** @var ResourceCursorInterface $categories */
+            $categories = $client->getCategoryApi()->all();
+
+            /** @var mixed[] $category */
+            foreach ($categories as $category) {
+                if (!isset($category['code']) || isset($category['parent'])) {
                     continue;
                 }
-                $this->options[$family['code']] = $family['code'];
+                $this->options[$category['code']] = $category['code'];
             }
         } catch (\Exception $exception) {
             $this->logger->warning($exception->getMessage());
@@ -86,6 +92,7 @@ class Family implements ArrayInterface
     {
         /** @var array $optionArray */
         $optionArray = [];
+
         /**
          * @var int    $optionValue
          * @var string $optionLabel

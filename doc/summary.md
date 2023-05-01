@@ -1,6 +1,6 @@
 # PIMGento2 (API) Documentation summary
 
-Just click on the section you want to go in !
+Just click on the section you want to go in!
 
 I. Important stuff
 ------------------
@@ -20,7 +20,8 @@ III. Configuration
 ------------------
 > PIMGento2 (API) full configuration is available at Stores > Catalog > Pimgento.
 
-##### 1. [api](configuration/api.md)
-##### 2. [filter products](configuration/filter_products.md)
-##### 3. [attributes](configuration/attributes.md)
-##### 4. [products](configuration/products.md)
+##### 1. [API](configuration/api.md)
+##### 2. [Filter products](configuration/filter_products.md)
+##### 3. [Attributes](configuration/attributes.md)
+##### 4. [Categories](configuration/categories.md)
+##### 5. [Products](configuration/products.md)

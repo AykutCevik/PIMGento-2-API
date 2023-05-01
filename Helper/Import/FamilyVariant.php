@@ -18,28 +18,19 @@ class FamilyVariant extends Entities
      * Get columns from the api result
      *
      * @param array $result
-     * @param array $keys
      *
      * @return array
      */
-    protected function getColumnsFromResult(array $result, array $keys = [])
+    protected function getColumnsFromResult(array $result)
     {
         /** @var array $columns */
         $columns = [];
         /**
          * @var string $key
-         * @var mixed  $value
+         * @var mixed $value
          */
         foreach ($result as $key => $value) {
             if (in_array($key, static::EXCLUDED_COLUMNS)) {
-                continue;
-            }
-            if ($key == 'values') {
-                /** @var array $values */
-                $values = $this->formatValues($value);
-                /** @var array $columns */
-                $columns = array_merge($columns, $values);
-
                 continue;
             }
             $columns[$key] = $value;
@@ -59,8 +50,8 @@ class FamilyVariant extends Entities
              */
             foreach ($value as $local => $data) {
                 if ($key == 'variant_attribute_sets') {
-                    $columns['variant-axes_'.$data['level']] = join(',', $data['axes']);
-                    $columns['variant-attributes_'.$data['level']] = join(',', $data['attributes']);
+                    $columns['variant-axes_'.$data['level']]       = strtolower(join(',', $data['axes']));
+                    $columns['variant-attributes_'.$data['level']] = strtolower(join(',', $data['attributes']));
 
                     continue;
                 }
@@ -68,7 +59,7 @@ class FamilyVariant extends Entities
                     if (is_array($data)) {
                         $data = join(',', $data);
                     }
-                    $columns[$key . '-' . $local] = $data;
+                    $columns[$key.'-'.$local] = $data;
                 } else {
                     $columns[$key] = join(',', $value);
                 }

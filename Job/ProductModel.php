@@ -145,7 +145,7 @@ class ProductModel extends Import
         /** @var array $except */
         $except = ['code', 'axis'];
         /** @var array $variantTable */
-        $variantTable = $connection->getTableName('pimgento_product_model');
+        $variantTable = $this->entitiesHelper->getTable('pimgento_product_model');
         /** @var array $columns */
         $columns = array_keys($connection->describeTable($variantTable));
         /** @var string $column */
@@ -171,7 +171,7 @@ class ProductModel extends Import
         /** @var array $except */
         $except = ['code', 'axis', 'type', '_entity_id', '_is_new'];
         /** @var array $variantTable */
-        $variantTable = $connection->getTableName('pimgento_product_model');
+        $variantTable = $this->entitiesHelper->getTable('pimgento_product_model');
         /** @var array $columns */
         $columns = array_keys($connection->describeTable($tmpTable));
         /** @var string $column */
@@ -179,10 +179,15 @@ class ProductModel extends Import
             if (in_array($column, $except)) {
                 continue;
             }
-            $connection->addColumn($variantTable, $this->_columnName($column), 'TEXT');
+            $connection->addColumn($variantTable, $this->_columnName($column), 'text');
         }
         if (!$connection->tableColumnExists($tmpTable, 'axis')) {
-            $connection->addColumn($tmpTable, 'axis', 'VARCHAR(255)');
+            $connection->addColumn($tmpTable, 'axis', [
+                'type' => 'text',
+                'length' => 255,
+                'default' => '',
+                'COMMENT' => ' '
+            ]);
         }
     }
 
@@ -198,7 +203,7 @@ class ProductModel extends Import
         /** @var array $tmpTable */
         $tmpTable = $this->entitiesHelper->getTableName($this->getCode());
         /** @var array $variantTable */
-        $variantTable = $connection->getTableName('pimgento_product_model');
+        $variantTable = $this->entitiesHelper->getTable('pimgento_product_model');
         /** @var array $variant */
         $variant = $connection->query(
             $connection->select()->from($tmpTable)
@@ -206,7 +211,7 @@ class ProductModel extends Import
         /** @var array $attributes */
         $attributes = $connection->fetchPairs(
             $connection->select()->from(
-                $connection->getTableName('eav_attribute'),
+                $this->entitiesHelper->getTable('eav_attribute'),
                 ['attribute_code', 'attribute_id']
             )->where('entity_type_id = ?', $this->getEntityTypeId())
         );

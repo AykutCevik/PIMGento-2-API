@@ -164,6 +164,8 @@ class Attribute extends Import
          * @var array $attribute
          */
         foreach ($attributes as $index => $attribute) {
+            $attribute['code'] = strtolower($attribute['code']);
+
             $this->entitiesHelper->insertDataFromApi($attribute, $this->getCode());
         }
         $index++;
@@ -184,7 +186,7 @@ class Attribute extends Import
         $connection = $this->entitiesHelper->getConnection();
         /** @var Select $select */
         $select = $connection->select()->from(
-            $connection->getTableName('eav_attribute'),
+            $this->entitiesHelper->getTable('eav_attribute'),
             [
                 'import'    => new Expr('"attribute"'),
                 'code'      => 'attribute_code',
@@ -195,7 +197,7 @@ class Attribute extends Import
         $connection->query(
             $connection->insertFromSelect(
                 $select,
-                $connection->getTableName('pimgento_entities'),
+                $this->entitiesHelper->getTable('pimgento_entities'),
                 ['import', 'code', 'entity_id'],
                 2
             )
@@ -259,9 +261,9 @@ class Attribute extends Import
         /** @var string $tmpTable */
         $tmpTable = $this->entitiesHelper->getTableName($this->getCode());
         /** @var string $familyAttributeRelationsTable */
-        $familyAttributeRelationsTable = $connection->getTableName('pimgento_family_attribute_relations');
+        $familyAttributeRelationsTable = $this->entitiesHelper->getTable('pimgento_family_attribute_relations');
 
-        $connection->addColumn($tmpTable, '_attribute_set_id', 'TEXT NULL');
+        $connection->addColumn($tmpTable, '_attribute_set_id', 'text');
         /** @var string $importTmpTable */
         $importTmpTable = $connection->select()->from($tmpTable, ['code', '_entity_id']);
         /** @var string $queryTmpTable */
@@ -300,6 +302,12 @@ class Attribute extends Import
         $connection = $this->entitiesHelper->getConnection();
         /** @var string $tmpTable */
         $tmpTable = $this->entitiesHelper->getTableName($this->getCode());
+
+        /** @var string $adminLang */
+        $adminLang = $this->storeHelper->getAdminLang();
+        /** @var string $adminLabelColumn */
+        $adminLabelColumn = sprintf('labels-%s', $adminLang);
+
         /** @var Select $import */
         $import = $connection->select()->from($tmpTable);
         /** @var \Zend_Db_Statement_Interface $query */
@@ -314,7 +322,7 @@ class Attribute extends Import
                 'attribute_code' => $row['code'],
             ];
             $connection->insertOnDuplicate(
-                $connection->getTableName('eav_attribute'),
+                $this->entitiesHelper->getTable('eav_attribute'),
                 $values,
                 array_keys($values)
             );
@@ -323,22 +331,16 @@ class Attribute extends Import
                 'attribute_id' => $row['_entity_id'],
             ];
             $connection->insertOnDuplicate(
-                $connection->getTableName('catalog_eav_attribute'),
+                $this->entitiesHelper->getTable('catalog_eav_attribute'),
                 $values,
                 array_keys($values)
             );
 
             /* Retrieve default admin label */
-            /** @var array $stores */
-            $stores = $this->storeHelper->getStores();
             /** @var string $frontendLabel */
             $frontendLabel = __('Unknown');
-            if (isset($stores[0])) {
-                /** @var array $admin */
-                $admin = reset($stores[0]);
-                if (isset($row['labels-'.$admin['lang']])) {
-                    $frontendLabel = $row['labels-'.$admin['lang']];
-                }
+            if (!empty($row[$adminLabelColumn])) {
+                $frontendLabel = $row[$adminLabelColumn];
             }
 
             /* Retrieve attribute scope */
@@ -424,17 +426,55 @@ class Attribute extends Import
 
                 foreach ($attributeSetIds as $attributeSetId) {
                     if (is_numeric($attributeSetId)) {
-                        $this->eavSetup->addAttributeGroup(
-                            $this->getEntityTypeId(),
-                            $attributeSetId,
-                            ucfirst($row['group'])
-                        );
-                        $this->eavSetup->addAttributeToSet(
-                            $this->getEntityTypeId(),
-                            $attributeSetId,
+                        /* Verify if the group already exists */
+                        /** @var int $setId */
+                        $setId = $this->eavSetup->getAttributeSetId($this->getEntityTypeId(), $attributeSetId);
+                        /** @var int $groupId */
+                        $groupId = $this->eavSetup->getSetup()->getTableRow(
+                            'eav_attribute_group',
+                            'attribute_group_name',
                             ucfirst($row['group']),
-                            $row['_entity_id']
+                            'attribute_group_id',
+                            'attribute_set_id',
+                            $setId
                         );
+
+                        if ($groupId) {
+                            /* The group already exists, update it */
+                            /** @var string[] $dataGroup */
+                            $dataGroup = [
+                                'attribute_set_id' => $setId,
+                                'attribute_group_name' => ucfirst($row['group']),
+                            ];
+
+                            $this->eavSetup->updateAttributeGroup(
+                                $this->getEntityTypeId(),
+                                $setId,
+                                $groupId,
+                                $dataGroup
+                            );
+
+                            $this->eavSetup->addAttributeToSet(
+                                $this->getEntityTypeId(),
+                                $attributeSetId,
+                                $groupId,
+                                $row['_entity_id']
+                            );
+                        } else {
+                            /* The group doesn't exists, create it */
+                            $this->eavSetup->addAttributeGroup(
+                                $this->getEntityTypeId(),
+                                $attributeSetId,
+                                ucfirst($row['group'])
+                            );
+
+                            $this->eavSetup->addAttributeToSet(
+                                $this->getEntityTypeId(),
+                                $attributeSetId,
+                                ucfirst($row['group']),
+                                $row['_entity_id']
+                            );
+                        }
                     }
                 }
             }
@@ -452,7 +492,7 @@ class Attribute extends Import
                     foreach ($data as $store) {
                         /** @var string $exists */
                         $exists = $connection->fetchOne(
-                            $connection->select()->from($connection->getTableName('eav_attribute_label'))->where(
+                            $connection->select()->from($this->entitiesHelper->getTable('eav_attribute_label'))->where(
                                 'attribute_id = ?',
                                 $row['_entity_id']
                             )->where('store_id = ?', $store['store_id'])
@@ -469,14 +509,14 @@ class Attribute extends Import
                                 'store_id = ?'     => $store['store_id'],
                             ];
 
-                            $connection->update($connection->getTableName('eav_attribute_label'), $values, $where);
+                            $connection->update($this->entitiesHelper->getTable('eav_attribute_label'), $values, $where);
                         } else {
                             $values = [
                                 'attribute_id' => $row['_entity_id'],
                                 'store_id'     => $store['store_id'],
                                 'value'        => $row['labels-'.$lang],
                             ];
-                            $connection->insert($connection->getTableName('eav_attribute_label'), $values);
+                            $connection->insert($this->entitiesHelper->getTable('eav_attribute_label'), $values);
                         }
                     }
                 }

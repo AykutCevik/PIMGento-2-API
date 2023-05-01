@@ -130,7 +130,7 @@ class FamilyVariant extends Import
         }
         /** @var array $variantFamily */
         $variantFamily = $variantFamilies->getItems();
-        if (empty($family)) {
+        if (empty($variantFamily)) {
             $this->setMessage(__('No results retrieved from Akeneo'));
             $this->stop(1);
 
@@ -177,7 +177,12 @@ class FamilyVariant extends Import
         /** @var string $tmpTable */
         $tmpTable = $this->entitiesHelper->getTableName($this->getCode());
 
-        $connection->addColumn($tmpTable, '_axis', 'VARCHAR(255)');
+        $connection->addColumn($tmpTable, '_axis', [
+            'type' => 'text',
+            'length' => 255,
+            'default' => '',
+            'COMMENT' => ' '
+        ]);
         /** @var array $columns */
         $columns = [];
         /** @var int $i */
@@ -206,7 +211,7 @@ class FamilyVariant extends Import
         /** @var array $attributes */
         $attributes = $connection->fetchPairs(
             $connection->select()->from(
-                $connection->getTableName('eav_attribute'),
+                $this->entitiesHelper->getTable('eav_attribute'),
                 ['attribute_code', 'attribute_id']
             )->where('entity_type_id = ?', $this->getEntityTypeId())
         );
@@ -245,7 +250,7 @@ class FamilyVariant extends Import
         );
 
         $connection->query(
-            $connection->updateFromSelect($query, ['p' => $connection->getTableName('pimgento_product_model')])
+            $connection->updateFromSelect($query, ['p' => $this->entitiesHelper->getTable('pimgento_product_model')])
         );
     }
 
